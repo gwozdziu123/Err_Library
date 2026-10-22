@@ -49,4 +49,4 @@ ErrLib.addSet({
 2. Dopisz zestaw w `data/catalog.js` (`sets`), a nową markę lub rodzaj w `brands` / `types`.
 3. Dodaj ścieżkę pliku do listy `FILES` w `sw.js` i podbij `VERSION`.
 
-Ulubione i ustawienia zapisują się w przeglądarce (localStorage) na danym urządzeniu.
+Ulubione, ustawienia i notatki zapisują się w przeglądarce (localStorage) na danym urządzeniu. Notatki można przenieść między urządzeniami: Ustawienia → Notatki → „Zapisz kopię do pliku” / „Wczytaj kopię z pliku” (plik JSON).

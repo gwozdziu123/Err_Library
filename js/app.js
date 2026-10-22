@@ -91,7 +91,7 @@
   }
   const langBtn = () => `<button class="icon-btn lang-btn" data-act="lang" aria-label="Zmień język opisów">${ST.lang === 'pl' ? 'PL' : 'EN'}</button>`;
   function tabbar(active) {
-    const tabs = [['katalog', 'folder', 'Katalog'], ['ulubione', 'star', 'Ulubione'], ['ustawienia', 'gear', 'Ustawienia']];
+    const tabs = [['katalog', 'folder', 'Katalog'], ['notatki', 'edit', 'Notatki'], ['ulubione', 'star', 'Ulubione'], ['ustawienia', 'gear', 'Ustawienia']];
     $('#tabbar').innerHTML = `<div class="tabbar-in">${tabs.map(([k, i, l]) =>
       `<a class="tab${active === k ? ' on' : ''}" href="#/${k === 'katalog' ? '' : k}"${active === k ? ' aria-current="page"' : ''}><span class="tab-ic">${ic(i)}</span>${l}</a>`).join('')}</div>`;
   }
@@ -106,6 +106,7 @@
     if (!p[0]) return viewHome();
     if (p[0] === 'ulubione') return viewFavs();
     if (p[0] === 'ustawienia') return viewSettings();
+    if (p[0] === 'notatki') return viewNotes();
     if (p[0] === 'set') {
       const meta = REG.catalog.sets.find(s => s.id === p[1]);
       if (!meta) return viewHome();
@@ -462,6 +463,109 @@
     });
   }
 
+  /* ---------- Notatki (osobny klucz localStorage, niezależny od ustawień) ---------- */
+  const NOTES_KEY = 'errlib.notes.v1';
+  const NT = { list: loadNotes(), q: '' };
+  function loadNotes() {
+    try { const a = JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  }
+  function saveNotes() {
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(NT.list)); return true; } catch (e) { toast('Nie udało się zapisać notatki'); return false; }
+  }
+  const pad2 = n => String(n).padStart(2, '0');
+  const isoDay = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  const todayIso = () => isoDay(new Date());
+  const DAYS = ['niedziela', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota'];
+  function fmtDay(iso) {
+    const [y, m, d] = iso.split('-').map(Number); const dt = new Date(y, m - 1, d);
+    return pad2(d) + '.' + pad2(m) + '.' + y + ' · ' + DAYS[dt.getDay()];
+  }
+  function dayLabel(iso) {
+    const t = new Date(); const y = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1);
+    if (iso === isoDay(t)) return 'Dziś · ' + fmtDay(iso);
+    if (iso === isoDay(y)) return 'Wczoraj · ' + fmtDay(iso);
+    return fmtDay(iso);
+  }
+  const fmtTime = ts => { const d = new Date(ts); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+  /* sortowanie: data notatki malejąco, w obrębie dnia – ostatnio zmienione na górze */
+  const sortNotes = a => a.slice().sort((x, y) => x.date === y.date ? (y.updated || 0) - (x.updated || 0) : (x.date < y.date ? 1 : -1));
+  function noteRow(n) {
+    const first = (n.body || '').split('\n').find(l => l.trim()) || '';
+    return `<div class="erow" data-act="note-edit" data-id="${esc(n.id)}" role="button" tabindex="0">
+      <span class="row-main"><span class="row-title">${esc(n.title)}</span>${first ? `<span class="row-sub">${esc(first)}</span>` : ''}</span>
+      ${isoDay(new Date(n.created)) === n.date ? `<span class="note-time">${fmtTime(n.created)}</span>` : ''}</div>`;
+  }
+  function viewNotes() {
+    screen(topbar('Notatki') + `<main class="wrap">
+      <div class="search">${ic('search')}<input id="notes-q" type="search" placeholder="Szukaj w notatkach" value="${esc(NT.q)}" autocomplete="off" aria-label="Szukaj w notatkach"></div>
+      <div id="notes-body"></div><div style="height:88px"></div></main>
+      <button class="fab" data-act="note-new">${ic('plus')}Nowa notatka</button>`, 'notatki');
+    $('#notes-q').addEventListener('input', e => { NT.q = e.target.value; drawNotes(); });
+    drawNotes();
+  }
+  function drawNotes() {
+    const b = $('#notes-body'); if (!b) return;
+    const today = todayIso();
+    const q = norm(NT.q.trim());
+    const all = sortNotes(NT.list).filter(n => !q || norm(n.title + ' ' + n.body).includes(q));
+    const todays = all.filter(n => n.date === today);
+    const future = all.filter(n => n.date > today);
+    const past = all.filter(n => n.date < today);
+    const byDay = arr => { const g = []; arr.forEach(n => { const last = g[g.length - 1]; if (last && last.date === n.date) last.items.push(n); else g.push({ date: n.date, items: [n] }); }); return g; };
+    let out = '';
+    if (future.length) out += `<div class="sec-title">Zaplanowane</div>` + byDay(future).reverse().map(g => `<div class="day-head">${esc(fmtDay(g.date))}</div><div class="card">${g.items.map(noteRow).join('')}</div>`).join('');
+    const none = !NT.list.length;
+    out += `<div class="sec-title">${esc(dayLabel(today))}</div>` + (none ? '' : todays.length ? `<div class="card">${todays.map(noteRow).join('')}</div>`
+      : `<div class="card"><div class="empty-sm">${q ? 'Brak pasujących notatek z dzisiaj.' : 'Brak notatek z dzisiaj. Dotknij „Nowa notatka”, aby dodać.'}</div></div>`);
+    if (past.length) out += `<div class="sec-title">Historia</div>` + byDay(past).map(g => `<div class="day-head">${esc(dayLabel(g.date))} <span class="muted">· ${g.items.length}</span></div><div class="card">${g.items.map(noteRow).join('')}</div>`).join('');
+    else if (none) out += `<div class="empty">${ic('edit')}<p>Nie masz jeszcze notatek.<br>Zapisuj tu np. wykonane nastawy, wymiany części i obserwacje z maszyn.</p></div>`;
+    b.innerHTML = out;
+  }
+  function noteForm(n) {
+    const isNew = !n;
+    n = n || { id: '', title: '', body: '', date: todayIso() };
+    const body = `<div class="field"><label for="nt-title">Tytuł</label><input id="nt-title" class="inp" value="${esc(n.title)}" maxlength="120" autocomplete="off"></div>
+      <div class="field"><label for="nt-date">Data</label><input id="nt-date" class="inp" type="date" value="${esc(n.date)}"></div>
+      <div class="field"><label for="nt-body">Treść</label><textarea id="nt-body" class="inp" rows="8" style="min-height:180px">${esc(n.body)}</textarea></div>
+      ${isNew ? '' : `<div class="hint">Utworzono ${esc(fmtDay(isoDay(new Date(n.created))))}, ${fmtTime(n.created)}${n.updated && n.updated !== n.created ? ` · zmieniono ${esc(fmtDay(isoDay(new Date(n.updated))))}, ${fmtTime(n.updated)}` : ''}</div>`}`;
+    const foot = (isNew ? '' : `<button class="btn danger-ghost" data-act="note-del" data-id="${esc(n.id)}" aria-label="Usuń notatkę">${ic('trash')}</button>`)
+      + `<button class="btn primary" data-act="note-save" data-id="${esc(n.id)}">Zapisz</button>`;
+    openSheet(isNew ? 'Nowa notatka' : 'Edytuj notatkę', body, foot);
+    if (isNew) setTimeout(() => { const i = $('#nt-title'); if (i) i.focus(); }, 250);
+  }
+  function noteSave(id) {
+    const ti = $('#nt-title'), title = ti.value.trim(), body = $('#nt-body').value.replace(/\s+$/, ''), date = $('#nt-date').value || todayIso();
+    if (!title) { ti.classList.add('err'); ti.focus(); toast('Wpisz tytuł notatki'); return; }
+    const now = Date.now();
+    if (id) { const n = NT.list.find(x => x.id === id); if (n) Object.assign(n, { title, body, date, updated: now }); }
+    else NT.list.push({ id: 'n' + now.toString(36) + Math.random().toString(36).slice(2, 6), title, body, date, created: now, updated: now });
+    if (saveNotes()) { closeSheet(); toast('Zapisano'); drawNotes(); }
+  }
+  function exportNotes() {
+    const blob = new Blob([JSON.stringify({ app: 'Err_Library', type: 'notes', version: 1, exported: new Date().toISOString(), notes: NT.list }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'err_library_notatki_' + todayIso() + '.json';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('Kopia zapisana w Pobranych');
+  }
+  function importNotes(file) {
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result); const arr = Array.isArray(d) ? d : d.notes;
+        if (!Array.isArray(arr)) throw 0;
+        let add = 0, upd = 0;
+        arr.forEach(n => {
+          if (!n || !n.id || !n.title || !/^\d{4}-\d{2}-\d{2}$/.test(n.date || '')) return;
+          const ex = NT.list.find(x => x.id === n.id);
+          const clean = { id: String(n.id), title: String(n.title), body: String(n.body || ''), date: n.date, created: +n.created || Date.now(), updated: +n.updated || +n.created || Date.now() };
+          if (!ex) { NT.list.push(clean); add++; } else if ((clean.updated || 0) > (ex.updated || 0)) { Object.assign(ex, clean); upd++; }
+        });
+        saveNotes(); toast('Dodano ' + add + ', zaktualizowano ' + upd); viewSettings();
+      } catch (e) { toast('Nie udało się odczytać pliku'); }
+    };
+    r.readAsText(file);
+  }
+
   /* ---------- Ekran: ustawienia ---------- */
   function viewSettings() {
     const C = REG.catalog;
@@ -476,6 +580,12 @@
       <div class="sec-title">Ulubione</div>
       <div class="card"><div class="kv"><span>Zapisane pozycje</span><b>${ST.favs.length}</b></div>
         <div class="btns" style="padding-top:12px"><button class="btn danger-ghost block" data-act="clear-favs" ${ST.favs.length ? '' : 'disabled'}>${ic('trash')}Wyczyść ulubione</button></div></div>
+      <div class="sec-title">Notatki</div>
+      <div class="card"><div class="kv"><span>Zapisane notatki</span><b>${NT.list.length}</b></div>
+        <div class="note" style="padding-top:4px">Notatki są zapisane tylko w tej przeglądarce. Zrób kopię do pliku, żeby przenieść je na inne urządzenie lub nie stracić ich po wyczyszczeniu danych przeglądarki.</div>
+        <div class="btns"><button class="btn ghost block" data-act="notes-export" ${NT.list.length ? '' : 'disabled'}>${ic('download')}Zapisz kopię do pliku</button>
+        <button class="btn ghost block" data-act="notes-import">${ic('upload')}Wczytaj kopię z pliku</button>
+        <input id="notes-file" type="file" accept=".json,application/json" hidden></div></div>
       <div class="sec-title">Dane</div>
       <div class="card">${C.sets.map(s => `<div class="kv"><span>${esc(s.name)}</span><span class="muted">${s.count} poz.</span></div>`).join('')}
         <div class="note">Każde urządzenie to osobny plik w folderze <code class="inline">data/&lt;marka&gt;/</code>, a lista kategorii jest w <code class="inline">data/catalog.js</code>. Ulubione i ustawienia są zapisane tylko na tym urządzeniu.</div></div>
@@ -516,6 +626,12 @@
     else if (a === 'goset') { e.preventDefault(); const id = t.getAttribute('href').split('/').pop(); const meta = REG.catalog.sets.find(s => s.id === id); if (meta.kind === 'devicelist') QDV.q = t.dataset.q; else (SETV[id] = SETV[id] || { cat: 'all' }).q = t.dataset.q; location.hash = '#/set/' + id; }
     else if (a === 'set-lang') { ST.lang = t.dataset.v; save(); viewSettings(); }
     else if (a === 'set-theme') { ST.theme = t.dataset.v; save(); applyTheme(); viewSettings(); }
+    else if (a === 'note-new') noteForm(null);
+    else if (a === 'note-edit') { const n = NT.list.find(x => x.id === t.dataset.id); if (n) noteForm(n); }
+    else if (a === 'note-save') noteSave(t.dataset.id);
+    else if (a === 'note-del') { const id = t.dataset.id; confirmDlg('Usunąć tę notatkę?', 'Usuń').then(ok => { if (!ok) return; NT.list = NT.list.filter(x => x.id !== id); if (saveNotes()) { closeSheet(); toast('Notatka usunięta'); drawNotes(); } }); }
+    else if (a === 'notes-export') exportNotes();
+    else if (a === 'notes-import') { const f = $('#notes-file'); f.value = ''; f.onchange = () => f.files[0] && importNotes(f.files[0]); f.click(); }
     else if (a === 'clear-favs') confirmDlg('Usunąć wszystkie ulubione (' + ST.favs.length + ')?', 'Usuń').then(ok => { if (ok) { ST.favs = []; save(); toast('Ulubione wyczyszczone'); viewSettings(); } });
   });
   document.addEventListener('keydown', e => {
@@ -536,7 +652,7 @@
     route();
   }
 
-  const APP_VERSION = '1.2.3';
+  const APP_VERSION = '1.3.0';
   function start() {
     applyTheme();
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);

@@ -79,3 +79,10 @@ code.inline{font-family:var(--font-mono);font-size:13px;background:var(--bg);pad
 .info-btn{color:var(--primary);width:40px;height:40px}
 .info-btn svg{width:22px;height:22px}
 .arow .nm small.pdesc{color:var(--text);font-size:13px;font-weight:600;opacity:.75}
+
+/* Notatki */
+.day-head{font-size:14px;font-weight:600;margin:14px 4px 6px}
+.note-time{flex:none;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;padding-right:12px}
+.erow[data-act="note-edit"]{padding-right:4px}
+.erow[data-act="note-edit"] .row-sub{white-space:nowrap}
+.sheet-foot .danger-ghost{width:56px;padding:0}
