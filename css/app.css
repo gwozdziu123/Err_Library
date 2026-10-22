@@ -86,3 +86,5 @@ code.inline{font-family:var(--font-mono);font-size:13px;background:var(--bg);pad
 .erow[data-act="note-edit"]{padding-right:4px}
 .erow[data-act="note-edit"] .row-sub{white-space:nowrap}
 .sheet-foot .danger-ghost{width:56px;padding:0}
+.tone-ok{color:var(--s-zakonczony)}
+#persist-status,#offline-status{font-weight:600}

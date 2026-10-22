@@ -539,7 +539,7 @@
     const now = Date.now();
     if (id) { const n = NT.list.find(x => x.id === id); if (n) Object.assign(n, { title, body, date, updated: now }); }
     else NT.list.push({ id: 'n' + now.toString(36) + Math.random().toString(36).slice(2, 6), title, body, date, created: now, updated: now });
-    if (saveNotes()) { closeSheet(); toast('Zapisano'); drawNotes(); }
+    if (saveNotes()) { closeSheet(); toast('Zapisano'); drawNotes(); if (SS && SS.persist && location.protocol !== 'file:') SS.persisted().then(p => p || SS.persist()).catch(() => {}); }
   }
   function exportNotes() {
     const blob = new Blob([JSON.stringify({ app: 'Err_Library', type: 'notes', version: 1, exported: new Date().toISOString(), notes: NT.list }, null, 2)], { type: 'application/json' });
@@ -588,10 +588,50 @@
         <input id="notes-file" type="file" accept=".json,application/json" hidden></div></div>
       <div class="sec-title">Dane</div>
       <div class="card">${C.sets.map(s => `<div class="kv"><span>${esc(s.name)}</span><span class="muted">${s.count} poz.</span></div>`).join('')}
-        <div class="note">Każde urządzenie to osobny plik w folderze <code class="inline">data/&lt;marka&gt;/</code>, a lista kategorii jest w <code class="inline">data/catalog.js</code>. Ulubione i ustawienia są zapisane tylko na tym urządzeniu.</div></div>
+        <div class="note">Każde urządzenie to osobny plik w folderze <code class="inline">data/&lt;marka&gt;/</code>, a lista kategorii jest w <code class="inline">data/catalog.js</code>. Ulubione, notatki i ustawienia są zapisane tylko na tym urządzeniu.</div></div>
       <div class="sec-title">Aplikacja</div>
-      <div class="card"><div class="note about"><b>Err_Library</b> · wersja ${APP_VERSION}<br>Działa offline po pierwszym otwarciu z serwera (HTTPS lub localhost). Aby zainstalować na telefonie, otwórz stronę w przeglądarce i wybierz „Dodaj do ekranu głównego”.</div></div>
+      <div class="card">
+        <div class="kv"><span>Trwały zapis danych</span><b id="persist-status" class="muted">sprawdzam…</b></div>
+        <div class="kv"><span>Praca offline</span><b id="offline-status" class="muted">sprawdzam…</b></div>
+        <div class="kv" id="usage-row"><span>Pliki offline (cache)</span><b id="usage-status" class="muted">—</b></div>
+        <div class="note" id="persist-note" style="padding-top:8px"></div>
+        <div class="btns" id="persist-btns" hidden><button class="btn primary block" data-act="persist-req">${ic('download')}Włącz trwały zapis</button></div>
+        <div class="note about" style="border-top:1px solid var(--line)"><b>Err_Library</b> · wersja ${APP_VERSION}<br>Działa offline po pierwszym otwarciu z serwera (HTTPS lub localhost). Aby zainstalować na telefonie, otwórz stronę w przeglądarce i wybierz „Dodaj do ekranu głównego”.</div></div>
     </main>`, 'ustawienia');
+    storageStatus();
+  }
+
+
+  /* ---------- Trwałość danych (Storage API) ---------- */
+  const SS = navigator.storage;
+  function fmtBytes(b) { return b < 1024 * 1024 ? (b / 1024).toFixed(0) + ' kB' : (b / 1048576).toFixed(1).replace('.', ',') + ' MB'; }
+  function storageStatus() {
+    const st = $('#persist-status'), note = $('#persist-note'), btns = $('#persist-btns'), off = $('#offline-status'), us = $('#usage-status');
+    if (!st) return;
+    const setS = (txt, tone) => { st.textContent = txt; st.className = tone ? 'tone-dot tone-' + tone : ''; };
+    // praca offline = aktywny service worker
+    if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) { off.textContent = 'Niedostępna'; off.className = 'tone-dot tone-warn'; }
+    else navigator.serviceWorker.getRegistration().then(r => { const ok = !!(r && r.active); off.textContent = ok ? 'Aktywna' : 'Nieaktywna'; off.className = 'tone-dot ' + (ok ? 'tone-ok' : 'tone-warn'); });
+    if (SS && SS.estimate) SS.estimate().then(e => { us.textContent = fmtBytes(e.usage || 0); us.className = ''; }).catch(() => {});
+    if (location.protocol === 'file:') {
+      setS('Niedostępny', 'warn'); btns.hidden = true; $('#usage-row').hidden = true;
+      note.textContent = 'Aplikacja jest otwarta z dysku (file://). Przeglądarka nie gwarantuje zachowania danych w tym trybie – uruchom ją z serwera HTTPS lub localhost i zrób kopię notatek do pliku.';
+      return;
+    }
+    if (!SS || !SS.persisted) { setS('Nieobsługiwany', 'warn'); btns.hidden = true; note.textContent = 'Ta przeglądarka nie obsługuje trwałego zapisu. Dane mogą zostać usunięte przy braku miejsca – rób kopię notatek do pliku.'; return; }
+    SS.persisted().then(p => {
+      if (p) {
+        setS('Włączony', 'ok'); btns.hidden = true;
+        note.textContent = 'Przeglądarka nie usunie automatycznie notatek, ulubionych ani ustawień, nawet przy braku miejsca. Ręczne wyczyszczenie danych witryny lub odinstalowanie aplikacji nadal je kasuje.';
+      } else {
+        setS('Wyłączony', 'warn'); btns.hidden = !SS.persist;
+        note.textContent = 'Przeglądarka może usunąć dane aplikacji przy braku miejsca lub po dłuższym nieużywaniu (np. Safari po 7 dniach). Włącz trwały zapis albo zainstaluj aplikację na ekranie głównym – niektóre przeglądarki przyznają go dopiero po instalacji.';
+      }
+    }).catch(() => setS('Nieznany', 'warn'));
+  }
+  function requestPersist() {
+    if (!SS || !SS.persist) return;
+    SS.persist().then(ok => { toast(ok ? 'Trwały zapis włączony' : 'Przeglądarka odrzuciła prośbę – zainstaluj aplikację i spróbuj ponownie'); storageStatus(); });
   }
 
   /* ---------- Akcje globalne ---------- */
@@ -626,6 +666,7 @@
     else if (a === 'goset') { e.preventDefault(); const id = t.getAttribute('href').split('/').pop(); const meta = REG.catalog.sets.find(s => s.id === id); if (meta.kind === 'devicelist') QDV.q = t.dataset.q; else (SETV[id] = SETV[id] || { cat: 'all' }).q = t.dataset.q; location.hash = '#/set/' + id; }
     else if (a === 'set-lang') { ST.lang = t.dataset.v; save(); viewSettings(); }
     else if (a === 'set-theme') { ST.theme = t.dataset.v; save(); applyTheme(); viewSettings(); }
+    else if (a === 'persist-req') requestPersist();
     else if (a === 'note-new') noteForm(null);
     else if (a === 'note-edit') { const n = NT.list.find(x => x.id === t.dataset.id); if (n) noteForm(n); }
     else if (a === 'note-save') noteSave(t.dataset.id);
@@ -652,7 +693,7 @@
     route();
   }
 
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.3.1';
   function start() {
     applyTheme();
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
