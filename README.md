@@ -21,7 +21,7 @@ data/
     mr-j4.js                 ← alarmy i ostrzeżenia MR-J4 (PL/EN)
     fr-e800.js               ← błędy falowników FR-E800 (PL/EN)
     fr-e800-param.js         ← parametry podstawowe FR-E800 (PL/EN)
-    qd77-devicelist.js       ← adresy bufora QD77 (formuły z arkusza)
+    qd77-devicelist.js       ← adresy bufora QD77 (formuły z arkusza) + opisy PA08–PB11
 doc/      dokumenty źródłowe
 ```
 

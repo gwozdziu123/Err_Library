@@ -1,6 +1,6 @@
 /* Service worker – cache aplikacji i danych do pracy offline.
    Po zmianie plików w data/ podbij numer wersji, żeby telefony pobrały nowe dane. */
-const VERSION = 'errlib-v1.1.0';
+const VERSION = 'errlib-v1.2.3';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './css/tokens.css', './css/components.css', './css/app.css',

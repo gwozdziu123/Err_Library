@@ -41,6 +41,7 @@
   /* ---------- Pomocnicze ---------- */
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const L = (pl, en) => ST.lang === 'en' ? en : pl;
   const T = o => o == null ? '' : (typeof o === 'string' ? o : (o[ST.lang] || o.en || o.pl || ''));
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l');
   const plural = (n, a, b, c) => n === 1 ? a : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c);
@@ -293,20 +294,41 @@
     },
     addrHtml(set, sh, row) {
       const p = this.addr(set, sh, row);
-      if (!p.length) { const any = row.a.some(a => a[ST.qd.mod]); return `<span class="ad na">${any ? '—' : 'brak'}<small>${any ? 'nie dotyczy' : this.mod(set).name}</small></span>`; }
+      if (!p.length) { const any = row.a.some(a => a[ST.qd.mod]); return `<span class="ad na">${any ? '—' : L('brak', 'none')}<small>${any ? L('nie dotyczy', 'not used') : this.mod(set).name}</small></span>`; }
       const isNum = p.every(x => /^\d+(–\d+)?$/.test(x));
       if (!isNum) return `<span class="ad" style="white-space:normal;max-width:45%;font-size:14px">${esc(p.join(' / '))}</span>`;
-      if (p.length === 1) return `<span class="ad">${esc(p[0])}${row.sh && row.sh.includes(ST.qd.mod) ? '<small>to samo słowo</small>' : ''}</span>`;
+      if (p.length === 1) return `<span class="ad">${esc(p[0])}${row.sh && row.sh.includes(ST.qd.mod) ? '<small>' + L('to samo słowo', 'same word') + '</small>' : ''}</span>`;
       return `<span class="ad">${esc(p[0])}<small>+ ${esc(p.slice(1).join(', '))}</small></span>`;
     },
     rowNum(sec, row) { return row.n ? (sec.prefix ? sec.prefix + '.' : '') + row.n : ''; },
+    /* przycisk opisu dla pozycji z opisem (np. PA08, PB09 w Parametrach serwa) */
+    infoBtn(set, id, row) {
+      if (!row.d) return '';
+      return `<button class="icon-btn info-btn" data-act="qd-info" data-set="${set.id}" data-id="${id}" aria-label="Opis parametru ${esc(row.t)}">${ic('info')}</button>`;
+    },
+    showInfo(set, id) {
+      const r = this.find(set, id); if (!r || !r.row.d) return;
+      const d = r.row.d, LB = set.descLabels || {}, other = ST.lang === 'pl' ? 'en' : 'pl';
+      const p = this.addr(set, r.sh, r.row);
+      const body = `<div class="det-head"><span class="code lg t-muted">${esc(r.row.t)}</span><span class="tag">${esc(d.abbr)}</span></div>
+        <p class="det-name">${esc(T(d.name))}</p>
+        ${d.name[other] && d.name[other] !== T(d.name) ? `<div class="muted small">${esc(d.name[other])}</div>` : ''}
+        <div class="total-box" style="margin-top:12px"><span><span style="font-weight:600">${L('Adres Un\\G', 'Un\\G address')}</span><small>${esc(this.mod(set).name)}, ${L('oś', 'axis')} ${ST.qd.axis}</small></span><b>${esc(p.length ? p.join(' / ') : '—')}</b></div>
+        ${d.secs.map(s => { const txt = T(s.t); if (!txt) return ''; return `<div class="det-sec"><div class="lbl">${esc(T(LB[s.k]) || s.k)}</div><div class="txt">${textBlock(txt)}</div></div>`; }).join('')}
+        <div class="det-kv">${d.info.map(([k, v]) => `<div class="kv"><span>${esc(T(LB[k]) || k)}</span><span>${esc(v)}</span></div>`).join('')}</div>
+        ${set.descNote ? `<div class="hint" style="margin-top:14px">${esc(T(set.descNote))}</div>` : ''}`;
+      const fav = isFav(set.id, id);
+      const foot = `<button class="btn ghost" data-act="lang-info" data-set="${set.id}" data-id="${id}">${ST.lang === 'pl' ? 'EN' : 'PL'}</button>
+        <button class="btn primary" data-act="fav-detail" data-set="${set.id}" data-id="${id}">${ic(fav ? 'starf' : 'star')}${fav ? L('Usuń z ulubionych', 'Remove from favourites') : L('Dodaj do ulubionych', 'Add to favourites')}</button>`;
+      openSheet(T(r.sh.title), body, foot);
+    },
     rowHtml(set, sh, si, ri, row, showSheet) {
       const sec = sh.sections[si];
       const id = sh.key + '.' + si + '.' + ri;
       const fav = isFav(set.id, id);
       const nb = this.rowNum(sec, row);
       return `<div class="arow">${nb ? `<span class="nb">${esc(nb)}</span>` : ''}
-        <span class="nm">${esc(row.t)}${showSheet ? `<small>${esc(sh.title)} · ${esc(sec.title)}</small>` : ''}</span>${this.addrHtml(set, sh, row)}
+        <span class="nm">${esc(row.t)}${row.d ? `<small class="pdesc">${esc(T(row.d.name))} (${esc(row.d.abbr)})</small>` : ''}${showSheet ? `<small>${esc(T(sh.title))} · ${esc(T(sec.title))}</small>` : ''}</span>${this.infoBtn(set, id, row)}${this.addrHtml(set, sh, row)}
         <button class="icon-btn fav-btn${fav ? ' on' : ''}" data-act="fav" data-set="${set.id}" data-id="${id}" aria-label="${fav ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}" aria-pressed="${fav}">${ic(fav ? 'starf' : 'star')}</button></div>`;
     },
     find(set, id) {
@@ -322,10 +344,10 @@
       set.sheets.forEach(sh => (sh.sections || []).forEach((sec, si) => sec.rows.forEach((row, ri) => {
         if (!row.a) return;
         const num = norm(this.rowNum(sec, row));
-        const hay = num + ' ' + norm(row.t) + ' ' + norm(sec.title) + ' ' + norm(sh.title);
+        const hay = num + ' ' + norm(row.t) + ' ' + (row.d ? norm(row.d.name.pl) + ' ' + norm(row.d.name.en) + ' ' + norm(row.d.abbr) + ' ' : '') + norm(sec.title.pl) + ' ' + norm(sec.title.en) + ' ' + norm(sh.title.pl) + ' ' + norm(sh.title.en);
         let sc = 0;
         if (num && (num === nq || num.split(', ').includes(nq) || num.replace(/^\w+\./, '') === nq)) sc = 100;
-        else if (norm(row.t).includes(nq)) sc = 60;
+        else if (norm(row.t).includes(nq) || (row.d && (norm(row.d.abbr) === nq || norm(T(row.d.name)).includes(nq)))) sc = 60;
         else if (words.every(w => hay.includes(w))) sc = 30;
         if (sc) out.push({ sc, sh, si, ri, row });
       })));
@@ -342,7 +364,7 @@
       <button data-act="${act}" data-d="1" ${extra || ''} ${val >= max ? 'disabled' : ''} aria-label="Więcej">${ic('plus')}</button></div>`;
   }
   function viewDevicelist(meta) {
-    screen(topbar(meta.name, true) + '<main class="wrap"><div class="empty"><p>Wczytuję…</p></div></main>', 'katalog');
+    screen(topbar(meta.name, true, langBtn()) + '<main class="wrap"><div class="empty"><p>Wczytuję…</p></div></main>', 'katalog');
     loadSet(meta.id).then(set => {
       const main = $('#app').querySelector('main');
       const draw = () => {
@@ -350,10 +372,10 @@
         if (ST.qd.axis > mod.axes) ST.qd.axis = mod.axes;
         let sh = set.sheets.find(s => s.key === ST.qd.sheet) || set.sheets[2];
         main.innerHTML = `
-          <div class="card qd-set"><div class="flabel">Moduł</div>
-            <div class="segp">${set.mods.map(m => `<button class="${m.id === ST.qd.mod ? 'on' : ''}" data-act="qd-mod" data-v="${m.id}">${esc(m.id === 'GF' ? 'GF4/8/16' : m.id)}<small>${m.axes} ${plural(m.axes, 'oś', 'osie', 'osi')}</small></button>`).join('')}</div>
-            <div class="qd-axis"><span class="flabel">Oś (Axis No.)</span>${stepper('qd-axis', ST.qd.axis, 1, mod.axes, 'Numer osi')}</div></div>
-          <div class="search">${ic('search')}<input id="qd-q" type="search" placeholder="Szukaj: Md.23, feed current, PA01…" value="${esc(QDV.q)}" autocomplete="off" enterkeyhint="search" aria-label="Szukaj adresu"></div>
+          <div class="card qd-set"><div class="flabel">${L('Moduł', 'Module')}</div>
+            <div class="segp">${set.mods.map(m => `<button class="${m.id === ST.qd.mod ? 'on' : ''}" data-act="qd-mod" data-v="${m.id}">${esc(m.id === 'GF' ? 'GF4/8/16' : m.id)}<small>${m.axes} ${ST.lang === 'en' ? 'axes' : plural(m.axes, 'oś', 'osie', 'osi')}</small></button>`).join('')}</div>
+            <div class="qd-axis"><span class="flabel">${L('Oś (Axis No.)', 'Axis No.')}</span>${stepper('qd-axis', ST.qd.axis, 1, mod.axes, L('Numer osi', 'Axis No.'))}</div></div>
+          <div class="search">${ic('search')}<input id="qd-q" type="search" placeholder="${L('Szukaj: Md.23, feed current, PA01…', 'Search: Md.23, feed current, PA01…')}" value="${esc(QDV.q)}" autocomplete="off" enterkeyhint="search" aria-label="Szukaj adresu"></div>
           <div id="qd-body"></div>`;
         $('#qd-q').addEventListener('input', e => { QDV.q = e.target.value; body(); });
         body();
@@ -362,13 +384,13 @@
         const b = $('#qd-body');
         if (QDV.q.trim()) {
           const r = QD.search(set, QDV.q);
-          b.innerHTML = r.length ? `<div class="hint" style="margin:0 4px 8px">${r.length} ${plural(r.length, 'wynik', 'wyniki', 'wyników')} · ${esc(QD.mod(set).name)}, oś ${ST.qd.axis}</div><div class="card">${QD.resultsHtml(set, r.slice(0, 150))}</div>`
-            : `<div class="empty">${ic('search')}<p>Brak pozycji dla „${esc(QDV.q)}”.</p></div>`;
+          b.innerHTML = r.length ? `<div class="hint" style="margin:0 4px 8px">${r.length} ${ST.lang === 'en' ? (r.length === 1 ? 'result' : 'results') : plural(r.length, 'wynik', 'wyniki', 'wyników')} · ${esc(QD.mod(set).name)}, ${L('oś', 'axis')} ${ST.qd.axis}</div><div class="card">${QD.resultsHtml(set, r.slice(0, 150))}</div>`
+            : `<div class="empty">${ic('search')}<p>${L('Brak pozycji dla', 'No items for')} „${esc(QDV.q)}”.</p></div>`;
           return;
         }
         const sh = set.sheets.find(s => s.key === ST.qd.sheet) || set.sheets[2];
-        b.innerHTML = `<div class="chips" role="tablist">${set.sheets.map(s => `<button class="chip${s.key === sh.key ? ' on' : ''}" data-act="qd-sheet" data-v="${s.key}" role="tab">${esc(s.title)}</button>`).join('')}</div>
-          <div class="hint" style="margin:-4px 4px 10px">${esc(sh.sub)}${sh.io ? '' : ' · adresy Un\\G (dziesiętnie)'}</div>` + (sh.io ? ioHtml(set, sh) : sheetHtml(set, sh));
+        b.innerHTML = `<div class="chips" role="tablist">${set.sheets.map(s => `<button class="chip${s.key === sh.key ? ' on' : ''}" data-act="qd-sheet" data-v="${s.key}" role="tab">${esc(T(s.title))}</button>`).join('')}</div>
+          <div class="hint" style="margin:-4px 4px 10px">${esc(T(sh.sub))}${sh.io ? '' : L(' · adresy Un\\G (dziesiętnie)', ' · Un\\G addresses (decimal)')}</div>` + (sh.io ? ioHtml(set, sh) : sheetHtml(set, sh));
         const act = b.querySelector('.chip.on'); if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest', inline: 'center' });
         const hx = $('#qd-head');
         if (hx) hx.addEventListener('input', e => { const v = e.target.value.toUpperCase().replace(/[^0-9A-F]/g, '').slice(0, 4); ST.qd.head = v; save(); $('#qd-io').innerHTML = ioRows(set, sh); });
@@ -392,10 +414,10 @@
     return sh.sections.map((sec, si) => {
       const ins = sec.inputs.filter(i => i.kind !== 'axis');
       const hasAxis = sec.inputs.some(i => i.kind === 'axis');
-      return `<div class="card"><div class="sec-head"><h3>${esc(sec.title || sh.title)}</h3>${hasAxis ? `<span class="tag">oś ${ST.qd.axis}</span>` : ''}</div>
+      return `<div class="card"><div class="sec-head"><h3>${esc(T(sec.title) || T(sh.title))}</h3>${hasAxis ? `<span class="tag">${L('oś', 'axis')} ${ST.qd.axis}</span>` : ''}</div>
         ${ins.length ? `<div class="sec-inputs">${ins.map(i => { const k = sh.key + ':' + i.cell; const v = ST.qd.inputs[k] == null ? i.default : ST.qd.inputs[k];
-          return `<div class="in-row"><span class="flabel">${esc(i.label)} <span class="muted" style="font-weight:400">(${i.min}–${i.max})</span></span>${stepper('qd-in', v, i.min, i.max, i.label, `data-k="${k}" data-min="${i.min}" data-max="${i.max}" data-def="${i.default}"`)}</div>`; }).join('')}</div>` : ''}
-        ${sec.rows.map((row, ri) => row.g ? `<div class="grp">${esc(row.g)}</div>` : row.g2 ? `<div class="grp2">${esc(row.g2)}</div>` : row.note ? `<div class="qnote">${esc(row.note)}</div>` : QD.rowHtml(set, sh, si, ri, row)).join('')}</div>`;
+          return `<div class="in-row"><span class="flabel">${esc(T(i.label))} <span class="muted" style="font-weight:400">(${i.min}–${i.max})</span></span>${stepper('qd-in', v, i.min, i.max, T(i.label), `data-k="${k}" data-min="${i.min}" data-max="${i.max}" data-def="${i.default}"`)}</div>`; }).join('')}</div>` : ''}
+        ${sec.rows.map((row, ri) => row.g ? `<div class="grp">${esc(T(row.g))}</div>` : row.g2 ? `<div class="grp2">${esc(T(row.g2))}</div>` : row.note ? `<div class="qnote">${esc(T(row.note))}</div>` : QD.rowHtml(set, sh, si, ri, row)).join('')}</div>`;
     }).join('');
   }
   function ioDev(prefix, head, i) {
@@ -403,20 +425,20 @@
     return prefix + (h + i).toString(16).toUpperCase();
   }
   function ioName(sh, v) {
-    if (v && typeof v === 'object') { const n = sh.io.notes[v.note] || ''; const m = n.match(/refer to\s*"([^"]+)"/i); return '→ ' + (m ? m[1] : 'patrz uwaga'); }
+    if (v && typeof v === 'object') { const n = sh.io.notes[v.note] || ''; const m = n.match(/refer to\s*"([^"]+)"/i); return '→ ' + (m ? m[1] : L('patrz uwaga', 'see note')); }
     return v || '';
   }
   function ioRows(set, sh) {
     const head = ST.qd.head || '0000', h = parseInt(head || '0', 16) || 0, m = ST.qd.mod;
-    if (h > 4064) return `<div class="banner">${ic('warn')}<span><b>Nieprawidłowy adres X-Y.</b> Maksymalnie 0FE0.</span></div>`;
+    if (h > 4064) return `<div class="banner">${ic('warn')}<span><b>${L('Nieprawidłowy adres X-Y.', 'Invalid X-Y address.')}</b> ${L('Maksymalnie', 'Max.')} 0FE0.</span></div>`;
     const side = (key, prefix, title) => `<div class="card"><div class="sec-head"><h3>${title}</h3></div>${sh.io.rows.map(r =>
       `<div class="arow"><span class="nb" style="min-width:52px;font-size:15px">${ioDev(prefix, head, r.i)}</span><span class="nm">${esc(ioName(sh, r[key][m]))}</span></div>`).join('')}</div>`;
-    return side('x', 'X', 'Wejścia X (QD77 → CPU)') + side('y', 'Y', 'Wyjścia Y (CPU → QD77)');
+    return side('x', 'X', L('Wejścia X (QD77 → CPU)', 'Inputs X (QD77 → CPU)')) + side('y', 'Y', L('Wyjścia Y (CPU → QD77)', 'Outputs Y (CPU → QD77)'));
   }
   function ioHtml(set, sh) {
-    return `<div class="card qd-set"><label class="flabel" for="qd-head">Adres początkowy X-Y modułu (hex)</label>
+    return `<div class="card qd-set"><label class="flabel" for="qd-head">${L('Adres początkowy X-Y modułu (hex)', 'Module head X-Y address (hex)')}</label>
       <input id="qd-head" class="inp hex-in" value="${esc(ST.qd.head || '0000')}" inputmode="text" maxlength="4" autocomplete="off" spellcheck="false">
-      <div class="hint">Np. 0000, 0020, 0080. Numery urządzeń przeliczą się automatycznie.</div></div><div id="qd-io">${ioRows(set, sh)}</div>`;
+      <div class="hint">${L('Np. 0000, 0020, 0080. Numery urządzeń przeliczą się automatycznie.', 'E.g. 0000, 0020, 0080. Device numbers update automatically.')}</div></div><div id="qd-io">${ioRows(set, sh)}</div>`;
   }
 
   /* ---------- Ekran: ulubione ---------- */
@@ -434,7 +456,7 @@
         let rows = '';
         if (meta.kind === 'errors') rows = fs.map(f => set.items.find(i => i.id === f.id)).filter(Boolean).map(it => errRow(set, it)).join('');
         else rows = fs.map(f => { const r = QD.find(set, f.id); return r ? QD.rowHtml(set, r.sh, r.si, r.ri, r.row, true) : ''; }).join('');
-        if (rows) out += `<div class="sec-title">${esc(meta.name)}${meta.kind === 'devicelist' ? ` · ${esc(QD.mod(set).name)}, oś ${ST.qd.axis}` : ''}</div><div class="card">${rows}</div>`;
+        if (rows) out += `<div class="sec-title">${esc(meta.name)}${meta.kind === 'devicelist' ? ` · ${esc(QD.mod(set).name)}, ${L('oś', 'axis')} ${ST.qd.axis}` : ''}</div><div class="card">${rows}</div>`;
       });
       b.innerHTML = out || `<div class="empty">${ic('star')}<p>Brak ulubionych.</p></div>`;
     });
@@ -476,6 +498,8 @@
     else if (a === 'close-sheet') closeSheet();
     else if (a === 'lang') { ST.lang = ST.lang === 'pl' ? 'en' : 'pl'; save(); toast(ST.lang === 'pl' ? 'Opisy po polsku' : 'Descriptions in English'); rerender(); }
     else if (a === 'group') { ST.groupBy = t.dataset.v; save(); viewHome(); }
+    else if (a === 'qd-info') { loadSet(t.dataset.set).then(set => QD.showInfo(set, t.dataset.id)); }
+    else if (a === 'lang-info') { ST.lang = ST.lang === 'pl' ? 'en' : 'pl'; save(); const id = t.dataset.id, sid = t.dataset.set; closeSheet(); rerender(); setTimeout(() => QD.showInfo(REG.sets[sid], id), 260); }
     else if (a === 'open') { if (e.target.closest('[data-act="fav"]')) return; showDetail(t.dataset.set, t.dataset.id); }
     else if (a === 'fav') {
       e.stopPropagation();
@@ -486,7 +510,7 @@
     }
     else if (a === 'fav-detail') {
       const on = toggleFav(t.dataset.set, t.dataset.id);
-      t.innerHTML = ic(on ? 'starf' : 'star') + (on ? 'Usuń z ulubionych' : 'Dodaj do ulubionych');
+      t.innerHTML = ic(on ? 'starf' : 'star') + (on ? L('Usuń z ulubionych', 'Remove from favourites') : L('Dodaj do ulubionych', 'Add to favourites'));
       document.querySelectorAll(`.fav-btn[data-set="${t.dataset.set}"][data-id="${CSS.escape(t.dataset.id)}"]`).forEach(b => { b.classList.toggle('on', on); b.innerHTML = ic(on ? 'starf' : 'star'); });
     }
     else if (a === 'goset') { e.preventDefault(); const id = t.getAttribute('href').split('/').pop(); const meta = REG.catalog.sets.find(s => s.id === id); if (meta.kind === 'devicelist') QDV.q = t.dataset.q; else (SETV[id] = SETV[id] || { cat: 'all' }).q = t.dataset.q; location.hash = '#/set/' + id; }
@@ -501,6 +525,8 @@
   let lastNav = 0;
   window.addEventListener('hashchange', () => lastNav++);
   function rerender() {
+    const y = window.scrollY;
+    setTimeout(() => window.scrollTo(0, y), 60);  // zachowaj miejsce na liście po zmianie języka
     const open = $('#sheet-root').classList.contains('open');
     const m = location.hash.match(/#\/set\/([^/]+)\/e\/(.+)$/);
     if (/#\/set\//.test(location.hash)) {
@@ -510,7 +536,7 @@
     route();
   }
 
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.2.3';
   function start() {
     applyTheme();
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);

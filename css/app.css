@@ -76,3 +76,6 @@ main{padding-top:4px}
 .about{font-size:14px;line-height:1.55;color:var(--muted)}
 .about b{color:var(--text)}
 code.inline{font-family:var(--font-mono);font-size:13px;background:var(--bg);padding:1px 6px;border-radius:var(--radius-xs)}
+.info-btn{color:var(--primary);width:40px;height:40px}
+.info-btn svg{width:22px;height:22px}
+.arow .nm small.pdesc{color:var(--text);font-size:13px;font-weight:600;opacity:.75}
