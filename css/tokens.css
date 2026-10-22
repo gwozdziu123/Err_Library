@@ -1,0 +1,91 @@
+/* Tokeny systemu wizualnego (el_Fuszka) */
+:root{
+  --bg:#f2f4f8;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --primary:#1d4ed8;
+  --primary-weak:#e6edff;
+  --on-primary:#ffffff;
+  --danger:#dc2626;
+  --danger-weak:#fdecec;
+  --on-danger:#ffffff;
+  --warn:#a16207;
+  --warn-weak:#fff6e0;
+  --s-wycena:#64748b;
+  --s-w_trakcie:#d97706;
+  --s-zakonczony:#16a34a;
+  --s-rozliczony:#7c3aed;
+  --on-status:#ffffff;
+  --brand-bolt:#ffc828;
+  --toast-bg:#111827;
+  --toast-text:#ffffff;
+  --backdrop:rgba(0,0,0,0.45);
+  --backdrop-dialog:rgba(0,0,0,0.5);
+  --space-4:4px;
+  --space-6:6px;
+  --space-8:8px;
+  --space-10:10px;
+  --space-12:12px;
+  --space-14:14px;
+  --space-16:16px;
+  --space-18:18px;
+  --space-20:20px;
+  --space-24:24px;
+  --radius-xs:6px;
+  --radius-sm:10px;
+  --radius-md:12px;
+  --radius:14px;
+  --radius-lg:18px;
+  --radius-sheet:20px;
+  --radius-pill:9999px;
+  --tabbar-h:64px;
+  --topbar-h:56px;
+  --touch-min:44px;
+  --control-h:50px;
+  --row-min:56px;
+  --chip-h:36px;
+  --content-max:640px;
+  --shadow:0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+  --shadow-fab:0 6px 16px rgba(29,78,216,0.35);
+  --font-sans:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1116;
+    --card:#181c24;
+    --text:#e8eaf0;
+    --muted:#9aa2b1;
+    --line:#2a303c;
+    --primary:#6b93f5;
+    --primary-weak:#1c2740;
+    --on-primary:#0b1020;
+    --danger:#f87171;
+    --danger-weak:#3a1d1d;
+    --on-danger:#ffffff;
+    --warn:#facc15;
+    --warn-weak:#3a2f12;
+    --shadow:none;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116;
+  --card:#181c24;
+  --text:#e8eaf0;
+  --muted:#9aa2b1;
+  --line:#2a303c;
+  --primary:#6b93f5;
+  --primary-weak:#1c2740;
+  --on-primary:#0b1020;
+  --danger:#f87171;
+  --danger-weak:#3a1d1d;
+  --on-danger:#ffffff;
+  --warn:#facc15;
+  --warn-weak:#3a2f12;
+  --shadow:none;
+  color-scheme:dark;
+}
