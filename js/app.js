@@ -164,7 +164,7 @@
   function scoreItem(it, q) {
     const nq = norm(q), code = norm(it.code), alt = norm(it.alt || '');
     if (code === nq || alt === nq || code.replace('.', '') === nq.replace('.', '')) return 100;
-    const bare = s => s.replace(/^(e|pr)\./, '');
+    const bare = s => s.replace(/^(e|pr)\./, '').replace(/^p(?=\d)/, '');
     if (bare(code) === bare(nq)) return 90;
     if (code.startsWith(nq) || alt.startsWith(nq) || bare(code).startsWith(bare(nq))) return 80;
     const name = norm(T(it.name)) + ' ' + norm(it.name.en) + ' ' + norm(it.name.pl);
@@ -664,7 +664,7 @@
     route();
   }
 
-  const APP_VERSION = '1.3.2';
+  const APP_VERSION = '1.4.1';
   function start() {
     applyTheme();
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);

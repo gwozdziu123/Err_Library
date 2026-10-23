@@ -1,12 +1,12 @@
 /* Service worker – cache aplikacji i danych do pracy offline.
    Po zmianie plików w data/ podbij numer wersji, żeby telefony pobrały nowe dane. */
-const VERSION = 'errlib-v1.3.2';
+const VERSION = 'errlib-v1.4.1';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './css/tokens.css', './css/components.css', './css/app.css',
   './js/icons.js', './js/formula.js', './js/registry.js', './js/app.js',
   './data/catalog.js',
-  './data/mitsubishi/mr-j4.js', './data/mitsubishi/fr-e800.js', './data/mitsubishi/fr-e800-param.js', './data/mitsubishi/qd77-devicelist.js',
+  './data/mitsubishi/mr-j4.js', './data/mitsubishi/fr-e800.js', './data/mitsubishi/fr-e800-param.js', './data/mitsubishi/qd77-devicelist.js', './data/sanyu/sx1000.js', './data/sanyu/sx1000-param.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'
 ];
 self.addEventListener('install', e => {

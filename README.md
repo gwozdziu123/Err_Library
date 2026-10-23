@@ -22,6 +22,9 @@ data/
     fr-e800.js               ← błędy falowników FR-E800 (PL/EN)
     fr-e800-param.js         ← parametry podstawowe FR-E800 (PL/EN)
     qd77-devicelist.js       ← adresy bufora QD77 (formuły z arkusza) + opisy PA08–PB11
+  sanyu/
+    sx1000.js                ← błędy falownika Sanyu SX1000
+    sx1000-param.js          ← parametry falownika Sanyu SX1000 (z instrukcji sanyu.eu)
 doc/      dokumenty źródłowe
 ```
 
